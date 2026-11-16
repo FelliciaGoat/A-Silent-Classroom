@@ -1,0 +1,296 @@
+<title>Silent Classroom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar with backend URL, tab strip, one working panel at a time (input left, annotated result + report right). */
+:root{
+  --bg:#f4f6f3; --surface:#ffffff; --fg:#17211c; --muted:#5d6b63; --line:#d9e0da;
+  --accent:#1f6f54; --accent-fg:#ffffff; --doubt:#c8321f; --ok:#1f8a4c; --away:#c27a12;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1713; --surface:#16211b; --fg:#e6efe9; --muted:#93a399; --line:#27372e;
+  --accent:#4fc38f; --accent-fg:#06140d; --doubt:#ff6b57; --ok:#52d38a; --away:#f0b04a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1713; --surface:#16211b; --fg:#e6efe9; --muted:#93a399; --line:#27372e;
+  --accent:#4fc38f; --accent-fg:#06140d; --doubt:#ff6b57; --ok:#52d38a; --away:#f0b04a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:end;justify-content:space-between}
+h1{font:700 clamp(26px,4vw,38px)/1.05 var(--display);margin:0;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:4px 0 0;max-width:52ch}
+.backend{display:flex;gap:8px;align-items:center;flex:1 1 340px;max-width:520px}
+.backend label{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+input[type=text],input[type=url]{flex:1;min-width:0;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;font:14px var(--mono)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--ok)}.dot.off{background:var(--doubt)}
+button,.btn{font:500 14px var(--body);background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:9px 16px;cursor:pointer;text-decoration:none;display:inline-block}
+button.ghost,.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{background:none;color:var(--muted);border-radius:0;padding:11px 16px;border-bottom:2px solid transparent;white-space:nowrap}
+nav button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.panel{display:grid;gap:16px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;display:grid;gap:12px;align-content:start}
+.card h2{font:700 17px var(--display);margin:0}
+.stage{position:relative;background:var(--bg);border:1px dashed var(--line);border-radius:8px;min-height:200px;display:grid;place-items:center;overflow:hidden}
+.stage img,.stage video,.stage canvas{width:100%;height:auto;display:block}
+.stage .hint{color:var(--muted);padding:24px;text-align:center}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font:500 22px var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.stat.alert b{color:var(--doubt)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.tw{overflow-x:auto}
+.pill{font:500 12px var(--mono);padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.pill.doubt{color:var(--doubt)}.pill.ok{color:var(--ok)}.pill.away{color:var(--away)}
+.msg{font-size:13px;color:var(--muted)}.msg.err{color:var(--doubt)}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.charts img{width:100%;border-radius:6px;background:#fff}
+ol.steps{margin:0;padding-left:20px;display:grid;gap:8px}
+code{font:13px var(--mono);background:var(--bg);padding:1px 5px;border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+</style>
+
+<div class="wrap">
+<header>
+  <div>
+    <h1>Silent Classroom</h1>
+    <p class="sub">Spots raised hands, looking-away students and confused faces in one pass, so a teacher sees who has a doubt without anyone speaking.</p>
+  </div>
+  <div class="backend">
+    <span class="dot" id="dot"></span>
+    <label for="base">Backend</label>
+    <input type="url" id="base" placeholder="https://xxxx.ngrok-free.app" autocomplete="off" spellcheck="false">
+    <button class="ghost" id="ping">Connect</button>
+  </div>
+</header>
+
+<nav role="tablist" id="tabs">
+  <button role="tab" data-tab="photo" aria-selected="true">Photo</button>
+  <button role="tab" data-tab="live" aria-selected="false">Live webcam</button>
+  <button role="tab" data-tab="video" aria-selected="false">Video</button>
+  <button role="tab" data-tab="eda" aria-selected="false">EDA graphs</button>
+  <button role="tab" data-tab="colab" aria-selected="false">Colab notebook</button>
+</nav>
+
+<section class="panel" id="p-photo">
+  <div class="cols">
+    <div class="card">
+      <h2>Classroom photo</h2>
+      <div class="stage" id="photoIn"><div class="hint">Choose a photo of a classroom</div></div>
+      <div class="row"><input type="file" id="photoFile" accept="image/*"><button id="photoGo" disabled>Analyze</button></div>
+      <div class="msg" id="photoMsg"></div>
+    </div>
+    <div class="card"><h2>Annotated result</h2><div class="stage" id="photoOut"><div class="hint">Result appears here</div></div></div>
+  </div>
+  <div class="card" id="photoRep"></div>
+</section>
+
+<section class="panel" id="p-live" hidden>
+  <div class="cols">
+    <div class="card">
+      <h2>Webcam stream</h2>
+      <video id="cam" muted playsinline hidden></video>
+      <div class="stage" id="liveOut"><div class="hint">Start the camera to stream frames to the backend</div></div>
+      <div class="row"><button id="camStart">Start camera</button><button class="ghost" id="camStop" disabled>Stop</button></div>
+      <div class="msg" id="liveMsg">The webcam needs the page opened as a local file or over https on your own site. Embedded previews block camera access; use the Photo or Video tab there.</div>
+    </div>
+    <div class="card" id="liveRep"><h2>Live report</h2><div class="msg">Waiting for frames.</div></div>
+  </div>
+</section>
+
+<section class="panel" id="p-video" hidden>
+  <div class="cols">
+    <div class="card">
+      <h2>Recorded lesson</h2>
+      <video id="vid" muted playsinline controls hidden></video>
+      <div class="stage" id="vidOut"><div class="hint">Choose a video, then press Analyze</div></div>
+      <div class="row"><input type="file" id="vidFile" accept="video/*"><button id="vidGo" disabled>Analyze</button><button class="ghost" id="vidStop" disabled>Stop</button></div>
+      <div class="msg" id="vidMsg"></div>
+    </div>
+    <div class="card" id="vidRep"><h2>Latest frame report</h2><div class="msg">Waiting for frames.</div></div>
+  </div>
+</section>
+
+<section class="panel" id="p-eda" hidden>
+  <div class="card">
+    <h2>Dataset and model graphs</h2>
+    <p class="msg">Charts come from the project notebook: FER2013 emotion class counts, brightness against contrast, and the baseline classifier accuracies.</p>
+    <div class="row"><button id="edaGo">Load graphs</button><span class="msg" id="edaMsg"></span></div>
+    <div class="charts" id="charts"></div>
+  </div>
+</section>
+
+<section class="panel" id="p-colab" hidden>
+  <div class="card">
+    <h2>Colab notebook</h2>
+    <p class="msg">The backend runs from this notebook. Open it, run the server cell, and paste the printed public URL into the Backend box above.</p>
+    <div class="row"><a class="btn" href="https://colab.research.google.com/drive/1ECh1OZQ_7dmj78yfV2suaMqe7sLJmj6G?usp=sharing" target="_blank" rel="noopener">Open in Google Colab</a></div>
+    <div class="msg">https://colab.research.google.com/drive/1ECh1OZQ_7dmj78yfV2suaMqe7sLJmj6G?usp=sharing</div>
+  </div>
+  <div class="card">
+    <h2>Start the backend</h2>
+    <ol class="steps">
+      <li>Upload <code>main_pipeline.py</code> to the Colab file panel.</li>
+      <li>Paste <code>colab_backend.py</code> into one cell and set <code>NGROK_TOKEN</code> to your ngrok authtoken.</li>
+      <li>Run the cell and keep it running. It prints a URL like <code>https://xxxx.ngrok-free.app</code>.</li>
+      <li>Paste that URL into the Backend box and press Connect. The dot turns green.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>How to read the output</h2>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--doubt)"></i>Doubt: raised arm, pointing finger or confused face</span>
+      <span><i class="sw" style="background:var(--ok)"></i>Attentive</span>
+      <span><i class="sw" style="background:var(--away)"></i>Looking away</span>
+    </div>
+    <p class="msg">The confusion score is a simple rule on DeepFace emotions (surprise + fear + sad above 45%). It is a hint for the teacher, not a validated measure.</p>
+  </div>
+</section>
+</div>
+
+<script>
+// ---- Config: set the Colab/ngrok URL here, or type it in the Backend box ----
+const BASE_URL = "";
+
+const $ = id => document.getElementById(id);
+let base = BASE_URL;
+try { base = localStorage.getItem("sc_base") || BASE_URL; } catch (e) {}
+if(/ngrok/.test(location.hostname)) base = location.origin;   // served by the Colab backend itself
+$("base").value = base;
+
+function url(path){ return $("base").value.trim().replace(/\/+$/,"") + path; }
+async function api(path, opts = {}){
+  if(!$("base").value.trim()) throw new Error("Enter the backend URL first (see the Colab notebook tab).");
+  opts.headers = Object.assign({"ngrok-skip-browser-warning":"true"}, opts.headers || {});
+  const r = await fetch(url(path), opts);
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || ("Server returned " + r.status));
+  return j;
+}
+const predict = (dataUrl, live=false) => api("/predict", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({image:dataUrl, live})});
+
+$("ping").onclick = async () => {
+  try { localStorage.setItem("sc_base", $("base").value.trim()); } catch (e) {}
+  $("dot").className = "dot";
+  try { await api("/health"); $("dot").className = "dot on"; }
+  catch (e) { $("dot").className = "dot off"; $("dot").title = e.message; }
+};
+
+// ---- Tabs ----
+const tabs = document.querySelectorAll("#tabs button");
+function show(name){
+  tabs.forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.hidden = p.id !== "p-" + name);
+  if(name !== "live") stopCam();
+}
+tabs.forEach(b => b.onclick = () => { show(b.dataset.tab); location.hash = b.dataset.tab; });
+const h = location.hash.slice(1);
+if(["photo","live","video","eda","colab"].includes(h)) show(h);
+
+// ---- Report rendering ----
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function report(r){
+  const s = (k, label, alert) => `<div class="stat${alert && r[k] ? " alert" : ""}"><b>${r[k] ?? 0}</b><span>${label}</span></div>`;
+  const rows = (r.faces_detail || []).map((f, i) => {
+    const st = f.confused ? ["doubt","confused"] : (f.attentive ? ["ok","attentive"] : ["away","looking away"]);
+    return `<tr><td>${i+1}</td><td>${esc(f.emotion ?? "-")}</td><td>${f.confusion != null ? Math.round(f.confusion*100) + "%" : "-"}</td><td><span class="pill ${st[0]}">${st[1]}</span></td></tr>`;
+  }).join("");
+  return `<h2>Report</h2><div class="stats">${s("people","People")}${s("faces","Faces")}${s("attentive_faces","Attentive")}${s("raised_hands","Raised hands")}${s("index_finger","Index finger")}${s("open_palm","Open palm")}${s("confused_faces","Confused")}${s("doubt_alerts","Doubt alerts",true)}${r.fps!=null?`<div class="stat"><b>${Number(r.fps).toFixed(1)}</b><span>Server FPS</span></div>`:""}</div>`
+    + (rows ? `<div class="tw"><table><thead><tr><th>Face</th><th>Emotion</th><th>Confusion</th><th>State</th></tr></thead><tbody>${rows}</tbody></table></div>` : "");
+}
+const setMsg = (id, t, err) => { $(id).textContent = t; $(id).className = "msg" + (err ? " err" : ""); };
+const showImg = (id, src) => { $(id).innerHTML = `<img alt="Annotated classroom frame" src="${src}">`; };
+
+// ---- Photo ----
+let photoData = null;
+$("photoFile").onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { photoData = rd.result; showImg("photoIn", photoData); $("photoGo").disabled = false; };
+  rd.readAsDataURL(f);
+};
+$("photoGo").onclick = async () => {
+  $("photoGo").disabled = true; setMsg("photoMsg", "Analyzing…");
+  try { const j = await predict(photoData); showImg("photoOut", j.image); $("photoRep").innerHTML = report(j.report); setMsg("photoMsg", "Done."); }
+  catch (e) { setMsg("photoMsg", e.message, true); }
+  $("photoGo").disabled = false;
+};
+
+// ---- Frame loop shared by webcam and video ----
+function grab(el, maxW = 480){
+  const w = el.videoWidth, hh = el.videoHeight; if(!w) return null;
+  const sc = Math.min(1, maxW / w), c = document.createElement("canvas");
+  c.width = Math.round(w * sc); c.height = Math.round(hh * sc);
+  c.getContext("2d").drawImage(el, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.6);
+}
+let looping = false, stream = null;
+async function loop(el, outId, repId, msgId, isDone){
+  looping = true; let n = 0, t0 = performance.now();
+  while(looping && !isDone()){
+    const f = grab(el);
+    if(f){
+      try {
+        const j = await predict(f, true);
+        showImg(outId, j.image); $(repId).innerHTML = report(j.report);
+        n++; setMsg(msgId, `${(n / ((performance.now() - t0) / 1000)).toFixed(1)} frames/s round trip`);
+      } catch (e) { setMsg(msgId, e.message, true); looping = false; }
+    }
+    await new Promise(r => setTimeout(r, 30));
+  }
+}
+
+// ---- Webcam ----
+function stopCam(){
+  looping = false;
+  if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $("camStart").disabled = false; $("camStop").disabled = true;
+}
+$("camStart").onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280}}});
+    $("cam").srcObject = stream; await $("cam").play();
+    $("camStart").disabled = true; $("camStop").disabled = false;
+    loop($("cam"), "liveOut", "liveRep", "liveMsg", () => !stream);
+  } catch (e) { setMsg("liveMsg", "Camera unavailable here: " + e.message + ". Open the downloaded index.html locally.", true); }
+};
+$("camStop").onclick = stopCam;
+
+// ---- Video ----
+$("vidFile").onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  $("vid").src = URL.createObjectURL(f); $("vidGo").disabled = false; setMsg("vidMsg", f.name);
+};
+$("vidGo").onclick = async () => {
+  const v = $("vid"); v.currentTime = 0;
+  try { await v.play(); } catch (e) {}
+  $("vidGo").disabled = true; $("vidStop").disabled = false;
+  await loop(v, "vidOut", "vidRep", "vidMsg", () => v.ended || v.paused);
+  $("vidGo").disabled = false; $("vidStop").disabled = true;
+};
+$("vidStop").onclick = () => { looping = false; $("vid").pause(); };
+
+// ---- EDA ----
+$("edaGo").onclick = async () => {
+  $("edaGo").disabled = true; setMsg("edaMsg", "Loading (the first call downloads the dataset and can take a minute)…");
+  try {
+    const j = await api("/get_eda");
+    $("charts").innerHTML = j.charts.map(c => `<figure style="margin:0;display:grid;gap:6px"><img alt="${esc(c.title)}" src="${c.image}"><figcaption class="msg">${esc(c.title)}</figcaption></figure>`).join("");
+    setMsg("edaMsg", "");
+  } catch (e) { setMsg("edaMsg", e.message, true); }
+  $("edaGo").disabled = false;
+};
+</script>
